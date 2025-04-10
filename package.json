@@ -1,0 +1,32 @@
+{
+  "name": "hyperliquid-mcp-server-v6",
+  "version": "1.0.0",
+  "description": "A standalone Model Context Protocol server for Hyperliquid with integrated dashboard",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "hyperliquid-mcp-server": "./build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "prepare": "npm run build",
+    "watch": "tsc --watch",
+    "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+    "setup": "node scripts/setup.js",
+    "test": "node test.js",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "0.6.0",
+    "axios": "^1.8.4",
+    "ethers": "^6.13.5",
+    "hyperliquid": "^1.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}

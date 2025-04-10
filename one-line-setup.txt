@@ -1,0 +1,1 @@
+git clone https://github.com/TradingBalthazar/hyperliquid-mcp-server-v6.git && cd hyperliquid-mcp-server-v6 && ./setup.sh && cd ..
