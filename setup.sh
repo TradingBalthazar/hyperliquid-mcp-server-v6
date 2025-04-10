@@ -165,16 +165,44 @@ async function handleGetAccountInfo(res: NextApiResponse<ResponseData>) {
     try {
       const spotState = await hyperliquidClient.info.spot.getSpotClearinghouseState(walletAddress)
       
+      // Get spot meta and asset contexts to get price information
+      const [spotMeta, spotAssetCtxs] = await hyperliquidClient.info.spot.getSpotMetaAndAssetCtxs()
+      
+      console.log("Spot Asset Contexts:", JSON.stringify(spotAssetCtxs, null, 2))
+      
+      // Create a map of coin to price
+      const priceMap: { [key: string]: number } = {}
+      spotAssetCtxs.forEach((assetCtx: any) => {
+        priceMap[assetCtx.coin] = parseFloat(assetCtx.markPx)
+      })
+      
+      // Ensure USDC has a price of 1
+      if (!priceMap["USDC-SPOT"] || priceMap["USDC-SPOT"] === 0) {
+        priceMap["USDC-SPOT"] = 1.0
+      }
+      
+      console.log("Price Map:", priceMap)
+      
       // Format spot data for easier consumption by the frontend
       if (spotState && spotState.balances) {
-        // Transform the balances array to include proper formatting
-        const formattedBalances = spotState.balances.map((balance: any) => ({
-          coin: balance.coin,
-          token: balance.token,
-          total: balance.total,
-          hold: balance.hold,
-          entryNtl: balance.entryNtl
-        }));
+        // Transform the balances array to include proper formatting and USD value
+        const formattedBalances = spotState.balances.map((balance: any) => {
+          const tokenAmount = parseFloat(balance.total)
+          const price = priceMap[balance.coin] || 0
+          const usdValue = tokenAmount * price
+          
+          console.log(`Balance for ${balance.coin}: Amount=${tokenAmount}, Price=${price}, USD Value=${usdValue}`)
+          
+          return {
+            coin: balance.coin,
+            token: balance.token, // Token ID
+            total: balance.total, // Number of tokens
+            hold: balance.hold,
+            entryNtl: balance.entryNtl,
+            price: price.toString(), // Current price
+            usdValue: usdValue.toString() // Calculated USD value
+          }
+        })
         
         accountInfo.spot = {
           ...spotState,
@@ -309,9 +337,8 @@ export default function Home() {
     // Add spot balances if available
     if (accountData.spot && accountData.spot.balances) {
       accountData.spot.balances.forEach((balance: any) => {
-        // Add the total value of each spot asset
-        // The 'total' field typically represents the USD value
-        total += Number(balance.total) || 0;
+        // Add the USD value of each spot asset
+        total += Number(balance.usdValue) || 0;
       });
     }
     
@@ -358,7 +385,18 @@ export default function Home() {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD'
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value)
+  }
+  
+  const formatPrice = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(value)
   }
 
@@ -549,14 +587,14 @@ export default function Home() {
                               <div>Asset</div>
                               <div>Tokens</div>
                               <div>USD Value</div>
-                              <div>Entry Value</div>
+                              <div>Price</div>
                             </div>
                             {accountInfo.spot.balances.map((balance: any, index: number) => (
                               <div key={index} className="grid grid-cols-4 gap-2 p-2 border-b last:border-0 text-sm">
                                 <div>{balance.coin}</div>
-                                <div>{balance.token}</div>
-                                <div>{formatCurrency(Number(balance.total))}</div>
-                                <div>{formatCurrency(Number(balance.entryNtl))}</div>
+                                <div>{parseFloat(balance.total).toFixed(2)}</div>
+                                <div>{formatCurrency(Number(balance.usdValue))}</div>
+                                <div>{formatPrice(Number(balance.price))}</div>
                               </div>
                             ))}
                           </div>
